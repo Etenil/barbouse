@@ -1,2 +1,3 @@
-GET#http://api.weatherapi.com/v1/current.json?key={API_KEY}&q=london
-
+#GET^http://api.weatherapi.com/v1/current.json?key={API_KEY}&q=london
+#Content-Type: application/json
+#|.weather.temp_c
