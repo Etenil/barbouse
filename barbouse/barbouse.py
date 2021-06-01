@@ -1,14 +1,13 @@
 import json
 import os
 import sys
+from pprint import pprint
 
 import jq
 import requests as r
 from pygments import highlight
 from pygments.formatters import TerminalFormatter
 from pygments.lexers import JsonLexer
-
-from pprint import pprint
 
 
 class ReqFile:
@@ -37,7 +36,7 @@ class ReqFile:
 
             # Headers and filter
             line = f.readline()
-            while line[0] == "#":
+            while len(line) > 0 and line[0] == "#":
                 if line[1] == "|":
                     req.filtr = jq.compile(req._populate(line[2:].strip()))
                 elif ":" in line:
