@@ -67,8 +67,6 @@ def main():
         result = resp.json()
         if req.filtr:
             result = req.filtr.input(result).all()
-        if len(result) == 1:
-            result = result[0]
 
         print(
             highlight(
