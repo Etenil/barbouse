@@ -1,7 +1,8 @@
 import json
 import os
 import sys
-from pprint import pprint
+from pathlib import Path
+from tempfile import gettempdir, mkstemp
 
 import jq
 import requests as r
@@ -55,26 +56,51 @@ class ReqFile:
 
 def main():
     for filename in sys.argv[1:]:
+        if filename in ("--headers", "-f"):
+            continue
         req = ReqFile.load(filename)
         resp = req.execute()
 
-        print(f"{resp.status_code} {resp.reason}")
-        for hdr, val in resp.headers.items():
-            print(f"{hdr}: {val}")
+        if "--headers" in sys.argv:
+            print(f"{resp.status_code} {resp.reason}")
+            for hdr, val in resp.headers.items():
+                print(f"{hdr}: {val}")
 
-        print(" ")
+            print(" ")
 
-        result = resp.json()
-        if req.filtr:
-            result = req.filtr.input(result).all()
+        dispo = resp.headers.get("content-disposition")
+        if dispo and "attachment" in dispo:
+            if ";" in dispo:
+                from pprint import pprint
 
-        print(
-            highlight(
-                json.dumps(result, indent=4, sort_keys=True),
-                JsonLexer(),
-                TerminalFormatter(),
+                filename = dispo.split(";")[1].strip().split("=")[1].replace('"', "")
+                filepath = Path(gettempdir()) / filename
+            else:
+                filepath = mkstemp()[1]
+
+            with open(filepath, "wb") as f:
+                for chunk in resp.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            return print(f"Response saved as {filepath}")
+
+        try:
+            result = resp.json()
+            if req.filtr or "-f" in sys.argv:
+                filtr = req.filtr
+                if "-f" in sys.argv:
+                    pattern = sys.argv[sys.argv.index("-f") + 1]
+                    filtr = jq.compile(req._populate(pattern.strip()))
+                result = filtr.input(result).all()
+
+            print(
+                highlight(
+                    json.dumps(result, indent=4, sort_keys=True),
+                    JsonLexer(),
+                    TerminalFormatter(),
+                )
             )
-        )
+        except json.JSONDecodeError:
+            print(resp.text)
 
 
 if __name__ == "__main__":
