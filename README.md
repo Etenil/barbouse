@@ -46,3 +46,13 @@ Barbouse can run multiple request files given on the command line:
 ```
 barbouse <file1> <file2>
 ```
+
+## Command line arguments
+
+The following arguments are supported:
+
+- `-H, --headers` to only output headers
+- `-b, --body` to only output the response body
+- `-r, --raw` to disable body formatting (JSON only)
+- `-f, --filter` to override the JQ filter for the request
+

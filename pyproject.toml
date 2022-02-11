@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "barbouse"
-version = "0.1.2"
+version = "0.1.3"
 description = "Postman for bearded API users"
 authors = ["Guillaume Pasquet <dev@etenil.net>"]
 license = "GPLv3"
