@@ -1,8 +1,9 @@
 import json
 import os
-import sys
 from pathlib import Path
 from tempfile import gettempdir, mkstemp
+
+import argparse
 
 import jq
 import requests as r
@@ -27,7 +28,7 @@ class ReqFile:
     @classmethod
     def load(klass, filename):
         req = klass()
-        with open(filename, "r") as f:
+        with open(filename, "r", encoding="utf-8") as f:
             line = f.readline()
             if line[0] != "#":
                 raise ValueError()
@@ -49,19 +50,47 @@ class ReqFile:
                 req.payload = None
         return req
 
-    def execute(self):
-        print(f"{self.method} {self.url}")
+    def execute(self, silent=False):
+        if not silent:
+            print(f"{self.method} {self.url}")
         return r.request(self.method, self.url, headers=self.headers, data=self.payload)
 
 
 def main():
-    for filename in sys.argv[1:]:
-        if filename in ("--headers", "-f"):
-            continue
-        req = ReqFile.load(filename)
-        resp = req.execute()
+    parser = argparse.ArgumentParser(description="Send HTTP requests")
+    parser.add_argument(
+        "-H",
+        "--headers",
+        action="store_true",
+        default=False,
+        help="Only print the request headers",
+    )
+    parser.add_argument(
+        "-b",
+        "--body",
+        action="store_true",
+        default=False,
+        help="Only output the response body",
+    )
+    parser.add_argument(
+        "-f", "--filter", type=str, default=False, help="JQ filter override"
+    )
+    parser.add_argument(
+        "-r",
+        "--raw",
+        default=False,
+        help="Print raw response body (no JSON formatting)",
+        action="store_true",
+    )
+    parser.add_argument("filename", type=str, nargs="+")
 
-        if "--headers" in sys.argv:
+    args = parser.parse_args()
+
+    for filename in args.filename:
+        req = ReqFile.load(filename)
+        resp = req.execute(silent=args.body)
+
+        if args.headers:
             print(f"{resp.status_code} {resp.reason}")
             for hdr, val in resp.headers.items():
                 print(f"{hdr}: {val}")
@@ -71,8 +100,6 @@ def main():
         dispo = resp.headers.get("content-disposition")
         if dispo and "attachment" in dispo:
             if ";" in dispo:
-                from pprint import pprint
-
                 filename = dispo.split(";")[1].strip().split("=")[1].replace('"', "")
                 filepath = Path(gettempdir()) / filename
             else:
@@ -85,20 +112,22 @@ def main():
 
         try:
             result = resp.json()
-            if req.filtr or "-f" in sys.argv:
+            if req.filtr or args.filter:
                 filtr = req.filtr
-                if "-f" in sys.argv:
-                    pattern = sys.argv[sys.argv.index("-f") + 1]
-                    filtr = jq.compile(req._populate(pattern.strip()))
+                if args.filter:
+                    filtr = jq.compile(req._populate(args.filter.strip()))
                 result = filtr.input(result).all()
 
-            print(
-                highlight(
-                    json.dumps(result, indent=4, sort_keys=True),
-                    JsonLexer(),
-                    TerminalFormatter(),
+            if args.raw:
+                print(json.dumps(result, indent=4, sort_keys=True))
+            else:
+                print(
+                    highlight(
+                        json.dumps(result, indent=4, sort_keys=True),
+                        JsonLexer(),
+                        TerminalFormatter(),
+                    )
                 )
-            )
         except json.JSONDecodeError:
             print(resp.text)
 
