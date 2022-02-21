@@ -1,5 +1,7 @@
 # BARBOUSE
 
+!!! This project is deprecated. Please use the compatible [barb](https://crates.io/crates/barb) instead.
+
 Postman for bearded API users.
 
 Barbouse is an API exploration/testing utility that relies on a simple
